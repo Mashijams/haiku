@@ -112,6 +112,35 @@ To be updated
 Haiku XFS API
 -------------
 
+* | All the necessary hooks for file system like xfs_mount(), open_dir(), read_dir() etc.. are implemented inside **kernel_interface.cpp** file.
+  | It acts as an interface between Haiku kernel and XFS file system.
+  | Documentation for all necessary file system hooks can be found `here <https://www.haiku-os.org/docs/api/fs_modules.html>`_
+  |
+  
+* | Whenever we run a file system under fs_shell we can't use system headers, fs_shell compatible headers are there which needs to be used whenever we try     to mount XFS file system using xfs_shell.
+  | To resolve this problem we use **system_dependencies.h** header file which takes care to use correct headers whenever we mount XFS file system either using xfs_shell or directly inside Haiku.
+  
+* XFS stores data on disk in Big Endian byte order, to convert data into host order all classes and data headers has **SwapEndian()** function, Its better to have all data conversions at one place to avoid future problems related to data order.
+  
+* XFS SuperBlock starts at ondisk offset 0, the definition of SuperBlock is in **xfs.h** file.
+  
+* | A Volume is an instance of file system and defined in **Volume.h** file. XFS Volume contains SuperBlock, file system device and essential functions       like Identify(), mount() etc...
+  | *Identify()* function reads SuperBlock from disk and verifies it.
+  | *Mount()* function mounts file system device and publishes root inode of file system (Typically root inode number for XFS is 128).
+  |
+  
+* | XFS uses TRACE Macro to debug file system, definitions for TRACE, ERROR and ASSERT are defined at **Debug.h** in the form of Macro.
+  | To enable TRACE calls just add ``#define TRACE_XFS`` in Debug.h file and vice versa to disable it.
+  |
+  
+* | XFS V5 introduced metadata checksums to ensure the integrity of metadata in file system, It uses CRC32C checksum algorithm. For XFS all checksums         related functions are defined **Checksum.h** header file.
+  | It contains following functions :
+  * *xfs_verify_cksum()* to verify checksum for buffer.
+  * *xfs_update_cksum()* to update checksum for buffer.
+  | **XFS stores checksum in little endian byte order unlike other ondisk data which is stored in big endian byte order**  
+  
+* XFS V5 introduced many other fields for metadata verification like *BlockNo* *UUID* *Owner* etc.. All this fields are common in every data header and so are their checks. So to not repeat same checks again and again for all headers we created a *VerifyHeader* template function which is defined in **VerifyHeader.h** file. This function is commonly used in all forms of headers for verification purposes.
+
 
 Current Status of XFS
 ---------------------
@@ -187,6 +216,6 @@ Currently we have no write support for xfs.
 References
 ----------
 
-The best and only reference for xfs is latest version of "xfs_filesystem_structure".
+The best and only reference for xfs is latest version of "xfs_filesystem_structure" written by Linux-XFS developers.
 
-The pdf version of above Doc is `here <http://ftp.ntu.edu.tw/linux/utils/fs/xfs/docs/xfs_filesystem_structure.pdf>`_
+The pdf version of above Doc can be found `here <http://ftp.ntu.edu.tw/linux/utils/fs/xfs/docs/xfs_filesystem_structure.pdf>`_
