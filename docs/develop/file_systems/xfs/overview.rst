@@ -109,7 +109,84 @@ Test using userlandfs
 To be updated
 
 
+Haiku XFS API
+-------------
 
 
+Current Status of XFS
+---------------------
+
+Currently we only have read support for XFS, below briefly summarises read support for all formats.  
 
 
+Directories
+^^^^^^^^^^^
+
+Short-Directory
+   Stable read support for both V4 and V5 inside Haiku.
+
+Block-Directory
+   Stable read support for both V4 and V5 inside Haiku.
+   
+Leaf-Directory
+   Stable read support for both V4 and V5 inside Haiku.
+
+Node-Directory
+   Stable read support for both V4 and V5 inside Haiku.
+   
+B+Tree-Directory
+   Unstable read support for both V4 and V5, due to so many read from disk entire process inside Haiku is too slow.
+ 
+ 
+Files
+^^^^^
+
+Extent based Files
+ | *xfs_shell* - stable read support for both V4 and V5.
+ | *Haiku* - Unstable, Cat command doesn't print entire file and never terminates process.
+   
+B+Tree based Files
+ | *xfs_shell* - stable read support for both V4 and V5.
+ | *Haiku* - Unstable, Cat command doesn't print entire file and never terminates process.
+ 
+
+Attributes
+^^^^^^^^^^
+
+Currently we have no extended attributes support for xfs.
+
+
+Symlinks
+^^^^^^^^
+
+Currently we have no symlinks support for xfs.
+
+
+XFS V5 exclusive features
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+MetaData Checksumming
+   Metadata checksums for superblock, Inodes, and data headers are implemented.
+   
+Big Timestamps
+   Currently we have no support.
+
+Reverse mapping btree
+   Currently we have no support, this data structure is still under construction and testing inside linux kernel.
+
+Refrence count btree
+   Currently we have no support, this data structure is still under construction and testing inside linux kernel.
+   
+
+Write Support
+^^^^^^^^^^^^^
+
+Currently we have no write support for xfs.
+
+
+References
+----------
+
+The best and only reference for xfs is latest version of "xfs_filesystem_structure".
+
+The pdf version of above Doc is `here <http://ftp.ntu.edu.tw/linux/utils/fs/xfs/docs/xfs_filesystem_structure.pdf>`_
