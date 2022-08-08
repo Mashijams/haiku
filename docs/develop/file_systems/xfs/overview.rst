@@ -141,6 +141,85 @@ Haiku XFS API
   
 * XFS V5 introduced many other fields for metadata verification like *BlockNo* *UUID* *Owner* etc.. All this fields are common in every data header and so are their checks. So to not repeat same checks again and again for all headers we created a *VerifyHeader* template function which is defined in **VerifyHeader.h** file. This function is commonly used in all forms of headers for verification purposes.
 
+Inodes
+^^^^^^
+
+XFS inodes comes in three versions:
+
+* Inode V1 & V2. (Version 4 XFS)
+* Inode V3. (Version 5 XFS)
+
+Version 1 inode support is already deprecated on linux kernel, Haiku XFS supports it only in read format. When we will have write support for XFS we will only support V2 and V3 inodes.
+
+V1 & V2 inodes are 256 bytes while V3 inodes are 512 bytes in size allowing more data to be stored directly inside inode.
+
+**CoreInodeSize()** is a helper funtion which returns size of Inode based on version of XFS and is used throughout our XFS code.
+
+**DIR_DFORK_PTR** is a Macro which expands to void pointer to the data offset in Inode, which could be either shortform entries, extents or B+Tree root   node depending on the data format of Inode (di_format).
+
+Similarly **DIR_AFORK_PTR** Macro expands to void pointer to the attribute offset in Inode, which could be either shortform attributes, attributes         extents or B+Tree node depending on the attribute format of Inode (di_aformat). 
+
+Since size of Inodes could differ based on different versions of XFS we pass CoreInodeSize() function as a parameter to DIR_DFORK_PTR and DIR_AFORK_PTR   macros to return correct pointer offset.
+
+**di_forkoff** specifies the offset into the inode’s literal area where the extended attribute fork starts. This value is initially zero until an extended attribute is created. It is fixed for V1 & V2 Inodes while for V3 Inodes it is dynamic in size, allowing complete use of inode's literal area.
+
+Directories
+^^^^^^^^^^^
+
+Depending on the number of entries inside directory, XFS divides directories into five formats :
+
+* Shortform directory.
+* Block directory.
+* Leaf directory.
+* Node directory.
+* B+Tree directorcy.
+
+Class DirectoryIterator in **Directory.h** file provides an interface between kernel request to open, read directory and all forms of directories. It first identifies correct format of entries inside inode and then returns request as per format found.
+
+Shortform directory
+
+* When the number of entries inside directory are small enough such that we can store all metadata inside inode itself, this form of directory is known      as shortform directory.
+* We can check if a directory is shortform if the format of inode is *XFS_DINODE_FMT_LOCAL*.
+* The header for ShortForm entries is located at data fork pointer inside inode, which we cast directly to *ShortFormHeader*.
+* Since number of entries are short we can simply iterate over all entries for *Lookup()* and *GetNext()* functions.
+   
+Block directory
+
+* When number of entries expand such that we can no longer store all directory metadata inside inode we use extents.
+* We can check if a directory is extent based if the format of inode is *XFS_DINODE_FMT_EXTENTS*.
+* In Block directory we have a single directory block for Data header, leaf header and free data header. This simple fact helps us to determine if           given extent format in inode is block directory.
+* Since XFS V4 & V5 data headers differs we use a virtual class *ExtentDataHeader* which acts as an interface between V4 & V5 data header, this class     only stores pure virtual functions and no data.
+* *CreateDataHeader* returns a class instance based on the version of XFS mounted.
+* Since now we have a virtual class with V_PTRS we need to be very careful with data stored ondisk and data inside class, for example we now can't use       sizeof() operator on class to return its size which is consistent with its size inside disk. To handle this issue helper function like                     *SizeOfDataHeader* are created which needs to be used instead of sizeof() operator.
+* In *GetNext()* function we simply iterate over all entries inside buffer, though a found entry could be unused entry so we need to have checks if a     entry found is proper entry.
+* In *Lookup()* function first we generate a hash value of entry for lookup, then we find lowerbound of this hash value inside leaf entries to get         address of entry inside data. At last if entry matches we return B_OK else we return B_ENTRY_NOT_FOUND.
+   
+Leaf directory
+ 
+* When number of entries expand such that we can no longer store all directory metadata inside directory block we use leaf format.
+* In leaf directory we have a multiple directory block for Data header and free data header, while single directory block for leaf header.
+* To check if given extent based inode is leaf type, we simply check for offset inside last extent map, if its equal to *LEAF_STARTOFFSET* then the         given inode is leaf type else it is node type.
+* Since XFS V4 & V5 leaf headers differs we use a virtual class *ExtentLeafHeader* which acts as an interface between V4 & V5 leaf header, this class        only stores pure virtual functions and no data.
+* *CreateLeafHeader* returns a class instance based on the version of XFS mounted.
+* Instead of sizeof() operator on ExtentLeafHeader we should always use *SizeOfLeafHeader()* function to return correct size of class inside disk.
+* *Lookup()* and *GetNext()* functions are similar to block directories except now we don't use single directory block buffer. 
+     
+TODO : Document Node and B+Tree based directories.
+
+Files
+^^^^^
+
+XFS stores files in two formats :
+
+* Extent based file.
+* B+Tree based file.
+
+All implementation of read support for files is inside *Inode()* class in **Inode.h** file.
+
+When the format inside inode of file is *XFS_DINODE_FMT_EXTENTS* it is an extent based file, to read all data of file we simply iterate over all extents which is very similar to how we do it in Extent based directories.
+
+When the file becomes too large such that we cannot store more extent maps inside inode the format of file is changed to B+Tree. When the format inside inode of file is *XFS_DINODE_FMT_BTREE* it is an B+Tree based file, to read all data of file first we read blocks of B+Tree to extract extent maps and then read extents to get file's data.
+
 
 Current Status of XFS
 ---------------------
